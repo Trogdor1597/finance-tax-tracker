@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Data (You don't want your real finance logs on GitHub)
+finance_log.csv
+*.csv
+
+# Python junk
+__pycache__/
+*.pyc
+venv/
