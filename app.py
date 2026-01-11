@@ -12,13 +12,17 @@ app = Flask(__name__)
 # --- CONFIGURATION ---
 PORT = 5001
 CSV_FILE = 'finance_log.csv'
-SECRET_BASE_URL = os.getenv('SECRET_BASE_URL', '/tracker83')
-USERNAME = os.getenv('TRACKER_USER', 'admin')
-PASSWORD = os.getenv('TRACKER_PASSWORD', 'password')
 
-# --- ADMIN CREDENTIALS ---
-# If TRACKER_ADMIN_PASSWORD is not set in .env, it defaults to the standard password.
-ADMIN_PASSWORD = os.getenv('TRACKER_ADMIN_PASSWORD', PASSWORD) 
+# Load from .env, but DO NOT provide a fallback.
+# If these are missing, the variable becomes None.
+SECRET_BASE_URL = os.getenv('SECRET_BASE_URL')
+USERNAME = os.getenv('TRACKER_USER')
+PASSWORD = os.getenv('TRACKER_PASSWORD')
+ADMIN_PASSWORD = os.getenv('TRACKER_ADMIN_PASSWORD')
+
+# Security Check: Crash if secrets are missing
+if not all([SECRET_BASE_URL, USERNAME, PASSWORD, ADMIN_PASSWORD]):
+    raise ValueError("CRITICAL ERROR: Secrets not found in .env file. The app will not start.")
 
 # --- CSS ---
 CSS = """
