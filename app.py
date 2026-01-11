@@ -12,9 +12,13 @@ app = Flask(__name__)
 # --- CONFIGURATION ---
 PORT = 5001
 CSV_FILE = 'finance_log.csv'
-SECRET_BASE_URL = os.getenv('SECRET_BASE_URL', '/tracker83') 
+SECRET_BASE_URL = os.getenv('SECRET_BASE_URL', '/tracker83')
 USERNAME = os.getenv('TRACKER_USER', 'admin')
 PASSWORD = os.getenv('TRACKER_PASSWORD', 'password')
+
+# --- ADMIN CREDENTIALS ---
+# If TRACKER_ADMIN_PASSWORD is not set in .env, it defaults to the standard password.
+ADMIN_PASSWORD = os.getenv('TRACKER_ADMIN_PASSWORD', PASSWORD) 
 
 # --- CSS ---
 CSS = """
@@ -112,7 +116,7 @@ INDEX_TEMPLATE = """
 </html>
 """
 
-# --- MANAGE TEMPLATE (Split Categories) ---
+# --- MANAGE TEMPLATE ---
 MANAGE_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -124,6 +128,7 @@ MANAGE_TEMPLATE = """
 <body>
     <div class="nav">
         <a href="{{ base_url }}" style="margin-left: 0;">⬅ Back to Tracker</a>
+        <span style="color: #dc3545; font-weight: bold;">🔒 Admin Mode</span>
     </div>
 
     <div class="card">
@@ -219,7 +224,7 @@ MANAGE_TEMPLATE = """
 </html>
 """
 
-# --- AUTHENTICATION ---
+# --- STANDARD AUTH (Dashboard) ---
 def check_auth(username, password):
     return username == USERNAME and password == PASSWORD
 
@@ -234,6 +239,25 @@ def requires_auth(f):
         auth = request.authorization
         if not auth or not check_auth(auth.username, auth.password):
             return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+# --- ADMIN AUTH (Manage/Delete) ---
+def check_admin_auth(username, password):
+    return username == USERNAME and password == ADMIN_PASSWORD
+
+def authenticate_admin():
+    # Different realm forces re-authentication
+    return Response(
+    'Admin Password Required', 401,
+    {'WWW-Authenticate': 'Basic realm="Admin Area - Sensitive Action"'})
+
+def requires_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_admin_auth(auth.username, auth.password):
+            return authenticate_admin()
         return f(*args, **kwargs)
     return decorated
 
@@ -272,27 +296,21 @@ def root():
 def index():
     return render_template_string(INDEX_TEMPLATE, css=CSS, today=datetime.now().strftime('%Y-%m-%d'), base_url=SECRET_BASE_URL, user=USERNAME)
 
-# --- REFACTORED MANAGE ROUTE ---
+# --- ADMIN ROUTES (Uses requires_admin) ---
 @app.route(f'{SECRET_BASE_URL}/manage')
-@requires_auth
+@requires_admin
 def manage():
     all_rows = read_csv()
     
-    # 1. Attach the original Index ID to every row so we can sort them without losing the delete key
-    # We skip row 0 (header) by enumerating starting at 0 but adding a check
     indexed_rows = []
     for i, row in enumerate(all_rows):
-        if i == 0: continue # Skip header
-        # Structure: {'id': 5, 'row': ['Income', '2025-01-10', ...]}
+        if i == 0: continue
         indexed_rows.append({'id': i, 'row': row})
     
-    # 2. Filter into categories
     income = [r for r in indexed_rows if r['row'][0] == 'Income']
     mileage = [r for r in indexed_rows if r['row'][0] == 'Mileage']
     expenses = [r for r in indexed_rows if r['row'][0] == 'Expense']
     
-    # 3. Sort each list by Date (Column 1) Descending (Newest First)
-    # x['row'][1] is the date string 'YYYY-MM-DD'
     income.sort(key=lambda x: x['row'][1], reverse=True)
     mileage.sort(key=lambda x: x['row'][1], reverse=True)
     expenses.sort(key=lambda x: x['row'][1], reverse=True)
@@ -307,7 +325,7 @@ def manage():
     )
 
 @app.route(f'{SECRET_BASE_URL}/delete_row/<int:row_index>', methods=['POST'])
-@requires_auth
+@requires_admin
 def delete_row(row_index):
     delete_row_by_index(row_index)
     return redirect(f'{SECRET_BASE_URL}/manage')
