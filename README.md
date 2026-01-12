@@ -5,6 +5,7 @@ A lightweight, secure Flask web application for private music teachers (or tutor
 ## Features
 * **Income Logging:** Automatically calculates 20% tax set-aside and net revenue.
 * **Secure:** Admin-only "Manage" area requires a secondary password to delete entries.
+* **Customizable:** Configure payment methods and expense accounts via environment variables.
 * **Privacy First:** Self-hosted, local CSV storage (no external database required).
 * **Mobile Friendly:** Designed for quick entry on mobile browsers.
 
@@ -20,7 +21,7 @@ A lightweight, secure Flask web application for private music teachers (or tutor
     ```bash
     pip install -r requirements.txt
     ```
-4.  Create a `.env` file based on `env.example`.
+4.  Create a `.env` file based on `env.example` and configure your `PAYMENT_SOURCES` and `EXPENSE_ACCOUNTS`.
 5.  Run the app:
     ```bash
     python app.py
